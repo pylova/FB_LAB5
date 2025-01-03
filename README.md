@@ -200,30 +200,29 @@
 ```lisp
 * (load "lab6.lisp")
 T
-* ;; Получить все статьи
+* ;; Отримати всі статті з файлу "articles.csv"
 (funcall (select "articles.csv"))
-(#<HASH-TABLE :TEST EQUAL :COUNT 3 {23966ED1}>
- #<HASH-TABLE :TEST EQUAL :COUNT 3 {239671A1}>
- #<HASH-TABLE :TEST EQUAL :COUNT 3 {23967449}>
- #<HASH-TABLE :TEST EQUAL :COUNT 3 {23967701}>
- #<HASH-TABLE :TEST EQUAL :COUNT 3 {23967989}>
- #<HASH-TABLE :TEST EQUAL :COUNT 3 {23967CB1}>)
+(#<HASH-TABLE :TEST EQUAL :COUNT 3 {23965AA9}>
+ #<HASH-TABLE :TEST EQUAL :COUNT 3 {23965D79}>
+ #<HASH-TABLE :TEST EQUAL :COUNT 3 {23966021}>
+ #<HASH-TABLE :TEST EQUAL :COUNT 3 {239662D9}>
+ #<HASH-TABLE :TEST EQUAL :COUNT 3 {23966561}>
+ #<HASH-TABLE :TEST EQUAL :COUNT 3 {23966889}>)
 *
-;; Получить статьи по физике
+;; Отримати статті по фізиці з файлу "articles.csv"
 (funcall (select "articles.csv") "Specialty" "Physics")
-(#<HASH-TABLE :TEST EQUAL :COUNT 3 {2396A939}>
- #<HASH-TABLE :TEST EQUAL :COUNT 3 {2396AC61}>)
+(#<HASH-TABLE :TEST EQUAL :COUNT 3 {23969521}>
+ #<HASH-TABLE :TEST EQUAL :COUNT 3 {23969849}>)
 *
-;; Сохранить отфильтрованные статьи в файл
+;; Зберегти відфільтровані статті (по фізиці) у файл "physics.csv"
 (write-csv "physics.csv"
           (funcall (select "articles.csv") "Specialty" "Physics"))
 NIL
 *
-;; Конвертировать запись в ассоциативный список
+;; Конвертувати перший запис в асоціативний список
 (hash-to-alist (first (funcall (select "articles.csv"))))
 (("ID" . "1") ("Specialty" . "Computer Science")
 ")) "Machine Learning Basics
-*
 ```
 
 
