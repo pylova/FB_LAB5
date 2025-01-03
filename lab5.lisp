@@ -1,136 +1,149 @@
-(defstruct publication
-  id
-  title
-  description
-  author
-  publication-date
-  specialty-id)
+;; ======= Базові утиліти =======
 
-(defstruct specialty
-  id
-  name
-  type
-  description)
+;; Функція для розділення рядка за роздільником
+(defun split-string (string &optional (delimiter #\,))
+  "Розділяє рядок на підрядки за вказаним роздільником"
+  (loop for start = 0 then (1+ position)
+        for position = (position delimiter string :start start)
+        collect (string-trim " " (subseq string start position))
+        while position))
 
-(defun publication-slots ()
-  '(id title description author publication-date specialty-id))
+;; Функція для створення запису у вигляді хеш-таблиці
+(defun create-record (fields headers)
+  "Створює запис у вигляді хеш-таблиці з полів CSV"
+  (let ((record (make-hash-table :test 'equal)))
+    (loop for field in fields
+          for header in headers
+          do (setf (gethash header record) field))
+    record))
 
-(defun specialty-slots ()
-  '(id name type description))
+;; ======= Основні функції роботи з даними =======
 
-(defun my-split-sequence (delimiter string)
-  "Splits STRING by the DELIMITER into a list of substrings."
-  (let ((start 0)
-        (result '()))
-    (loop for pos = (position delimiter string :start start)
-          while pos
-          do (push (subseq string start pos) result)
-             (setf start (1+ pos)))
-    (push (subseq string start) result)
+;; Функція для читання CSV файлу
+(defun read-csv (filename)
+  "Читає CSV файл і повертає список хеш-таблиць"
+  (with-open-file (stream filename :direction :input)
+    (let* ((headers (split-string (read-line stream)))
+           (records nil))
+      (loop for line = (read-line stream nil nil)
+            while line
+            do (push (create-record (split-string line) headers) records))
+      (nreverse records))))
+
+;; Функція для фільтрації записів за заданими критеріями
+(defun filter-records (records filters)
+  "Фільтрує записи за заданими критеріями"
+  (if (null filters)
+      records
+      (let ((key (first filters))
+            (value (second filters))
+            (rest-filters (cddr filters)))
+        (filter-records
+         (remove-if-not
+          (lambda (record)
+            (equal (gethash key record) value))
+          records)
+         rest-filters))))
+
+;; Функція для вибірки записів
+(defun select (filename)
+  "Повертає лямбда-вираз для вибірки записів"
+  (lambda (&rest filters)
+    (let ((records (read-csv filename)))
+      (filter-records records filters))))
+
+;; Функція для запису в CSV файл
+(defun write-csv (filename records)
+  "Записує записи в CSV файл"
+  (when records
+    (with-open-file (stream filename
+                           :direction :output
+                           :if-exists :supersede
+                           :if-does-not-exist :create)
+      (let ((headers (loop for key being the hash-keys of (first records)
+                          collect key)))
+        ;; Записуємо заголовки
+        (format stream "~{~A~^,~}~%" headers)
+        ;; Записуємо дані
+        (dolist (record records)
+          (format stream "~{~A~^,~}~%"
+                  (loop for header in headers
+                        collect (gethash header record))))))))
+
+;; Функція для конвертації хеш-таблиці в асоціативний список
+(defun hash-to-alist (hash-table)
+  "Конвертує хеш-таблицю в асоціативний список"
+  (let (result)
+    (maphash (lambda (key value)
+               (push (cons key value) result))
+             hash-table)
     (nreverse result)))
 
-(defun create-publication-record (row)
-  "Converts a CSV row into a PUBLICATION structure."
-  (let* ((fields (my-split-sequence #\, row)))
-    (if (= (length fields) 6)  ;; Fixed to expect 6 fields
-        (make-publication
-         :id (parse-integer (nth 0 fields))
-         :title (nth 1 fields)
-         :description (nth 2 fields)
-         :author (nth 3 fields)
-         :publication-date (nth 4 fields)
-         :specialty-id (parse-integer (nth 5 fields)))
-        (progn
-          (format t "Error: Invalid row format ~a~%" row)
-          nil))))
+;; Функція для красивого виведення
+(defun print-records (records)
+  "Красиво виводить записи таблиці"
+  (when records
+    (let ((headers (loop for key being the hash-keys of (first records)
+                        collect key)))
+      ;; Виводимо заголовки
+      (format t "~%~{~15A~}" headers)
+      (format t "~%~{---------------~}" headers)
+      ;; Виводимо дані
+      (dolist (record records)
+        (format t "~%~{~15A~}"
+                (loop for header in headers
+                      collect (gethash header record)))))))
 
-(defun create-specialty-record (row)
-  "Converts a CSV row into a SPECIALTY structure."
-  (let* ((fields (my-split-sequence #\, row)))
-    (if (= (length fields) 4)
-        (make-specialty
-         :id (parse-integer (nth 0 fields))
-         :name (nth 1 fields)
-         :type (nth 2 fields)
-         :description (nth 3 fields))
-        (progn
-          (format t "Error: Invalid row ~a~%" row)
-          nil))))
+;; ======= Тестові функції =======
 
-(defun read-csv-file (file-path create-record-fn)
-  "Reads a CSV file and returns a list of records created using create-record-fn."
-  (with-open-file (stream file-path :if-does-not-exist nil)
-    (if stream
-        (let ((header (read-line stream nil)))
-          (if (some (lambda (field) (string= field "ID")) (my-split-sequence #\, header))
-              (loop for line = (read-line stream nil)
-                    while line
-                    do (format t "Processing line: ~a~%" line)
-                    collect (funcall create-record-fn line))
-              (cons (funcall create-record-fn header)
-                    (loop for line = (read-line stream nil)
-                          while line
-                          do (format t "Processing line: ~a~%" line)
-                          collect (funcall create-record-fn line))))))))
+;; Тест для читання CSV файлу
+(defun test-read-csv ()
+  "Тест читання CSV файлу"
+  (format t "~%=== Тест читання CSV ===~%")
+  (let ((records (read-csv "articles.csv")))
+    (format t "Прочитано записів: ~A~%" (length records))
+    (format t "Перша запис:~%")
+    (maphash (lambda (k v)
+               (format t "~A: ~A~%" k v))
+             (first records))))
 
-(defun select (file-path create-record-fn)
-  "Returns a lambda that selects records from a CSV file, optionally filtering by field values."
-  (let ((records (read-csv-file file-path create-record-fn)))
-    (lambda (&rest filters)
-      (let ((filtered-records records))
-        (dolist (filter filters)
-          (let ((field (car filter))
-                (value (cdr filter)))
-            (format t "Filtering by ~a = ~a~%" field value)
-            (setf filtered-records
-                  (remove-if-not
-                   (lambda (record)
-                     (let ((slot-val (slot-value record field)))
-                       (format t "Checking record ~a | Field ~a = ~a~%" record field slot-val)
-                       (equal value slot-val)))
-                   filtered-records))))
-        filtered-records))))
+;; Тест функції select
+(defun test-select ()
+  "Тест функції select"
+  (format t "~%=== Тест вибірки даних ===~%")
+  ;; Всі записи
+  (format t "~%Всі статті:~%")
+  (print-records (funcall (select "articles.csv")))
+  ;; Фільтрація за спеціальністю
+  (format t "~%Статті з математики:~%")
+  (print-records (funcall (select "articles.csv") "Specialty" "Mathematics")))
 
-(defun write-records-to-csv (file-path records)
-  "Writes a list of records to a CSV file."
-  (with-open-file (stream file-path :direction :output :if-exists :supersede
-                          :if-does-not-exist :create)
-    (if stream
-        (progn
-          (dolist (record records)
-            (let ((slots (cond
-                          ((typep record 'publication) (publication-slots))
-                          ((typep record 'specialty) (specialty-slots)))))
-              (format stream "~{~a~^,~}~%" 
-                      (mapcar (lambda (slot) (slot-value record slot)) slots))))
-          (format t "Data successfully written to ~a~%" file-path))
-        (format t "Error: Could not open file ~a~%" file-path))))
+;; Тест функції запису в файл
+(defun test-write ()
+  "Тест запису в файл"
+  (format t "~%=== Тест запису в файл ===~%")
+  (let ((physics-records 
+         (funcall (select "articles.csv") "Specialty" "Physics")))
+    (write-csv "physics_articles.csv" physics-records)
+    (format t "Записи збережено в physics_articles.csv~%")
+    (print-records physics-records)))
 
-(defstruct joined-data
-  publication
-  specialty)
+;; Тест конвертації форматів
+(defun test-conversion ()
+  "Тест конвертації форматів"
+  (format t "~%=== Тест конвертації форматів ===~%")
+  (let ((record (first (funcall (select "articles.csv")))))
+    (format t "Оригінальна хеш-таблиця:~%")
+    (maphash (lambda (k v) (format t "~A: ~A~%" k v)) record)
+    (format t "~%У вигляді асоціативного списку:~%")
+    (format t "~A~%" (hash-to-alist record))))
 
-(defun join-publications-with-specialties (publications specialties)
-  "З'єднує публікації з спеціальностями за specialty-id."
-  (mapcar
-   (lambda (publication)
-     (let ((specialty (find (publication-specialty-id publication) specialties :key #'specialty-id)))
-       (make-instance 'joined-data
-                      :publication publication
-                      :specialty specialty))) 
-   publications))
-
-;; Testing the functions
-(defvar *publications* (read-csv-file "C:/Users/Diana/Desktop/lisp/publications.csv" #'create-publication-record))
-(defvar *specialties* (read-csv-file "C:/Users/Diana/Desktop/lisp/specialties.csv" #'create-specialty-record))
-
-(format t "Records to write to output.csv:~%")
-(write-records-to-csv "C:/Users/Diana/Desktop/lisp/output.csv" *publications*)
-
-(let ((select-publications (select "C:/Users/Diana/Desktop/lisp/publications.csv" #'create-publication-record)))
-  (let ((filtered-publications (funcall select-publications '(specialty-id . 5))))
-    (if filtered-publications
-        (progn
-          (format t "Filtered Publications:~%")
-          (write-records-to-csv "C:/Users/Diana/Desktop/lisp/filtered_publications.csv" filtered-publications))
-        (format t "No publications found for specialty-id = 5~%"))))
+;; Головна тестова функція
+(defun run-all-tests ()
+  "Запускає всі тести"
+  (format t "~%Початок тестування...~%")
+  (test-read-csv)
+  (test-select)
+  (test-write)
+  (test-conversion)
+  (format t "~%Тестування завершено.~%"))
