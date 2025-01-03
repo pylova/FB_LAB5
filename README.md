@@ -42,30 +42,30 @@
 ## Лістинг реалізації завдання
 ```lisp
 
-;; ======= Базовые утилиты =======
+;; ======= Базові утиліти =======
 
-;; Функция для разделения строки по разделителю
+;; Функція для розділення рядка за роздільником
 (defun split-string (string &optional (delimiter #\,))
-  "Разделяет строку на подстроки по разделителю"
+  "Розділяє рядок на підрядки за вказаним роздільником"
   (loop for start = 0 then (1+ position)
         for position = (position delimiter string :start start)
         collect (string-trim " " (subseq string start position))
         while position))
 
-;; Функция для создания записи в виде хеш-таблицы
+;; Функція для створення запису у вигляді хеш-таблиці
 (defun create-record (fields headers)
-  "Создает запись в виде хеш-таблицы из полей CSV"
+  "Створює запис у вигляді хеш-таблиці з полів CSV"
   (let ((record (make-hash-table :test 'equal)))
     (loop for field in fields
           for header in headers
           do (setf (gethash header record) field))
     record))
 
-;; ======= Основные функции работы с данными =======
+;; ======= Основні функції роботи з даними =======
 
-;; Функция для чтения CSV файла
+;; Функція для читання CSV файлу
 (defun read-csv (filename)
-  "Читает CSV файл и возвращает список хеш-таблиц"
+  "Читає CSV файл і повертає список хеш-таблиць"
   (with-open-file (stream filename :direction :input)
     (let* ((headers (split-string (read-line stream)))
            (records nil))
@@ -74,9 +74,9 @@
             do (push (create-record (split-string line) headers) records))
       (nreverse records))))
 
-;; Функция для фильтрации записей
+;; Функція для фільтрації записів за заданими критеріями
 (defun filter-records (records filters)
-  "Фильтрует записи по заданным критериям"
+  "Фільтрує записи за заданими критеріями"
   (if (null filters)
       records
       (let ((key (first filters))
@@ -89,16 +89,16 @@
           records)
          rest-filters))))
 
-;; Функция select
+;; Функція для вибірки записів
 (defun select (filename)
-  "Возвращает лямбда-выражение для выборки записей"
+  "Повертає лямбда-вираз для вибірки записів"
   (lambda (&rest filters)
     (let ((records (read-csv filename)))
       (filter-records records filters))))
 
-;; Функция для записи в CSV
+;; Функція для запису в CSV файл
 (defun write-csv (filename records)
-  "Записывает записи в CSV файл"
+  "Записує записи в CSV файл"
   (when records
     (with-open-file (stream filename
                            :direction :output
@@ -106,91 +106,94 @@
                            :if-does-not-exist :create)
       (let ((headers (loop for key being the hash-keys of (first records)
                           collect key)))
-        ;; Записываем заголовки
+        ;; Записуємо заголовки
         (format stream "~{~A~^,~}~%" headers)
-        ;; Записываем данные
+        ;; Записуємо дані
         (dolist (record records)
           (format stream "~{~A~^,~}~%"
                   (loop for header in headers
                         collect (gethash header record))))))))
 
-;; Функция для конвертации хеш-таблицы в ассоциативный список
+;; Функція для конвертації хеш-таблиці в асоціативний список
 (defun hash-to-alist (hash-table)
-  "Конвертирует хеш-таблицу в ассоциативный список"
+  "Конвертує хеш-таблицю в асоціативний список"
   (let (result)
     (maphash (lambda (key value)
                (push (cons key value) result))
              hash-table)
     (nreverse result)))
 
-;; Функция красивого вывода
+;; Функція для красивого виведення
 (defun print-records (records)
-  "Красиво выводит записи таблицы"
+  "Красиво виводить записи таблиці"
   (when records
     (let ((headers (loop for key being the hash-keys of (first records)
                         collect key)))
-      ;; Выводим заголовки
+      ;; Виводимо заголовки
       (format t "~%~{~15A~}" headers)
       (format t "~%~{---------------~}" headers)
-      ;; Выводим данные
+      ;; Виводимо дані
       (dolist (record records)
         (format t "~%~{~15A~}"
                 (loop for header in headers
                       collect (gethash header record)))))))
 
-
-
 ```
 ### Тестові набори та утиліти
 ```lisp
+;; ======= Тестові функції =======
+
+;; Тест для читання CSV файлу
 (defun test-read-csv ()
-  "Тест чтения CSV файла"
-  (format t "~%=== Тест чтения CSV ===~%")
+  "Тест читання CSV файлу"
+  (format t "~%=== Тест читання CSV ===~%")
   (let ((records (read-csv "articles.csv")))
-    (format t "Прочитано записей: ~A~%" (length records))
-    (format t "Первая запись:~%")
+    (format t "Прочитано записів: ~A~%" (length records))
+    (format t "Перша запис:~%")
     (maphash (lambda (k v)
                (format t "~A: ~A~%" k v))
              (first records))))
 
+;; Тест функції select
 (defun test-select ()
-  "Тест функции select"
-  (format t "~%=== Тест выборки данных ===~%")
-  ;; Все записи
-  (format t "~%Все статьи:~%")
+  "Тест функції select"
+  (format t "~%=== Тест вибірки даних ===~%")
+  ;; Всі записи
+  (format t "~%Всі статті:~%")
   (print-records (funcall (select "articles.csv")))
-  ;; Фильтрация по специальности
-  (format t "~%Статьи по математике:~%")
+  ;; Фільтрація за спеціальністю
+  (format t "~%Статті з математики:~%")
   (print-records (funcall (select "articles.csv") "Specialty" "Mathematics")))
 
+;; Тест функції запису в файл
 (defun test-write ()
-  "Тест записи в файл"
-  (format t "~%=== Тест записи в файл ===~%")
+  "Тест запису в файл"
+  (format t "~%=== Тест запису в файл ===~%")
   (let ((physics-records 
          (funcall (select "articles.csv") "Specialty" "Physics")))
     (write-csv "physics_articles.csv" physics-records)
-    (format t "Записи сохранены в physics_articles.csv~%")
+    (format t "Записи збережено в physics_articles.csv~%")
     (print-records physics-records)))
 
+;; Тест конвертації форматів
 (defun test-conversion ()
-  "Тест конвертации форматов"
-  (format t "~%=== Тест конвертации форматов ===~%")
+  "Тест конвертації форматів"
+  (format t "~%=== Тест конвертації форматів ===~%")
   (let ((record (first (funcall (select "articles.csv")))))
-    (format t "Исходная хеш-таблица:~%")
+    (format t "Оригінальна хеш-таблиця:~%")
     (maphash (lambda (k v) (format t "~A: ~A~%" k v)) record)
-    (format t "~%В виде ассоциативного списка:~%")
+    (format t "~%У вигляді асоціативного списку:~%")
     (format t "~A~%" (hash-to-alist record))))
 
-;; Главная тестовая функция
+;; Головна тестова функція
 (defun run-all-tests ()
-  "Запускает все тесты"
-  (format t "~%Начало тестирования...~%")
+  "Запускає всі тести"
+  (format t "~%Початок тестування...~%")
   (test-read-csv)
   (test-select)
   (test-write)
   (test-conversion)
-  (format t "~%Тестирование завершено.~%"))
-
+  (format t "~%Тестування завершено.~%"))
 ```
 
 ### Тестування
