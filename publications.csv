@@ -1,0 +1,6 @@
+ID,Title,Description,Author,Publication-Date,Specialty-ID
+1,Introduction to Lisp,An introduction to programming in Lisp,John Doe,2023-01-01,1
+2,Advanced Lisp Concepts,Deep dive into advanced Lisp topics,Jane Smith,2023-03-15,2
+3,Lisp for Data Science,Using Lisp for data manipulation and analysis,Emily Johnson,2023-06-01,1
+4,Functional Programming in Lisp,Exploring functional programming in Lisp,Michael Brown,2023-08-10,3
+5,Data Structures in Lisp,A guide to data structures in Lisp,Anna White,2023-11-20,2
